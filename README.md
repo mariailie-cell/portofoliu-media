@@ -1,5 +1,7 @@
 # portofoliu-media
 proiectul meu la modul cu domnul Sergiu
+
+
 15. Test de verificare – GitHub
 1. Ce este un depozit și ce conține în plus față de un folder obișnuit?
 Un depozit (repository) este un spațiu în care se păstrează fișierele unui proiect și istoricul modificărilor acestora.
