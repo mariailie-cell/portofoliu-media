@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magie de Crăciun — WebGL</title>
+<style>
+  *{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#061326}
+  canvas{display:block;width:100%;height:100%}
+  .hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6vh 18px 20px;color:#fff;text-align:center;font-family:Georgia,serif;text-shadow:0 2px 16px #8ccfff}
+  h1{font-size:clamp(2rem,6vw,5rem);font-weight:400;letter-spacing:.12em;margin:0;color:#fff4d6}
+  p{font:500 12px/1.5 system-ui,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#c9e8ff;margin:12px 0}
+  .hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;color:#d5e9ff99;font:11px system-ui,sans-serif;letter-spacing:.12em;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Brad de Crăciun animat în WebGL"></canvas>
+<div class="hud"><h1>Crăciun Fericit</h1><p>magia sărbătorilor</p></div>
+<div class="hint">MIȘCĂ MOUSE-UL PENTRU A PRIVI SCENA</div>
+<script>
+(() => {
+const canvas=document.getElementById('scene'), gl=canvas.getContext('webgl',{antialias:true,alpha:false});
+if(!gl){document.body.innerHTML='<p style="color:white;padding:2rem">Browserul nu suportă WebGL.</p>';return;}
+const vs=`attribute vec3 aPos; attribute vec3 aColor; uniform mat4 uMVP; uniform float uPoint; varying vec3 vColor; void main(){gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=uPoint;vColor=aColor;}`;
+const fs=`precision mediump float; varying vec3 vColor; uniform float uAlpha; void main(){gl_FragColor=vec4(vColor,uAlpha);}`;
+function shader(type,src){let s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s;}
+const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
+const loc={pos:gl.getAttribLocation(prog,'aPos'),color:gl.getAttribLocation(prog,'aColor'),mvp:gl.getUniformLocation(prog,'uMVP'),point:gl.getUniformLocation(prog,'uPoint'),alpha:gl.getUniformLocation(prog,'uAlpha')};
+gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+const V=(x,y,z)=>[x,y,z], verts=[], cols=[], sizes=[];
+function add(p,c){verts.push(...p);cols.push(...c);}
+function sphere(cx,cy,cz,r,color,steps=10){for(let i=0;i<steps;i++){let a=i*Math.PI*2/steps,b=(i+1)*Math.PI*2/steps;for(let j=0;j<steps;j++){let t=j*Math.PI/steps,u=(j+1)*Math.PI/steps;let pt=(aa,tt)=>[cx+r*Math.sin(tt)*Math.cos(aa),cy+r*Math.cos(tt),cz+r*Math.sin(tt)*Math.sin(aa)];let q=[pt(a,t),pt(b,t),pt(b,u),pt(a,t),pt(b,u),pt(a,u)];q.forEach(p=>add(p,color));}}}
+function cone(cx,cy,cz,r,h,color,n=48){for(let i=0;i<n;i++){let a=i*2*Math.PI/n,b=(i+1)*2*Math.PI/n;let p=[cx,cy+h,cz],q=[cx+r*Math.cos(a),cy,cz+r*Math.sin(a)],s=[cx+r*Math.cos(b),cy,cz+r*Math.sin(b)];[p,q,s].forEach(v=>add(v,color));}}
+function line(points,color){for(let i=0;i<points.length-1;i++){add(points[i],color);add(points[i+1],color);}}
+const green1=[.025,.28,.17],green2=[.035,.39,.22],trunk=[.28,.12,.055];
+sphere(0,-1.17,0,.17,trunk,12);
+cone(0,-.65,0,.86,1.25,green1);cone(0,.05,0,.68,1.15,green2);cone(0,.68,0,.49,1.05,[.045,.34,.2]);
+const gold=[1,.72,.22],red=[.9,.08,.12],blue=[.2,.65,1],white=[.9,.95,1];
+let seed=42;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+for(let i=0;i<42;i++){let y=-.55+rand()*2.05, maxR=.83*(1-(y+.65)/2.4)+.08, a=rand()*Math.PI*2,r=maxR*(.82+rand()*.18),x=Math.cos(a)*r,z=Math.sin(a)*r; sphere(x,y,z,.045+rand()*.025,[gold,red,blue,white][i%4],8);}
+for(let i=0;i<13;i++){let y=-.8+i*.17,a=i*2.4,r=.78*(1-(y+.65)/2.4)+.05;let pts=[];for(let j=0;j<120;j++){let t=j/119*Math.PI*2;pts.push([Math.cos(t)*r*Math.cos(a+t*.35),y+Math.sin(t)*.055,Math.sin(t)*r*Math.sin(a+t*.35)]);}line(pts,[1,.78,.3]);}
+sphere(0,1.35,0,.13,gold,12);
+// Star rays
+const starPts=[];for(let i=0;i<10;i++){let a=i*Math.PI/5-Math.PI/2,r=i%2===0?.34:.15;starPts.push([Math.cos(a)*r,1.35+Math.sin(a)*r,0]);}
+for(let i=0;i<10;i++)line([starPts[i],starPts[(i+1)%10]],[1,.86,.35]);
+sphere(-.55,-1.05,.35,.25,red);sphere(.5,-1.05,.3,.24,[.12,.35,.8]);
+const snow=[];for(let i=0;i<520;i++)snow.push({x:(rand()-.5)*5,y:rand()*4-1.8,z:(rand()-.5)*3.5,s:.012+rand()*.018,v:.25+rand()*.65});
+const snowPos=[],snowCol=[];snow.forEach(s=>{snowPos.push(s.x,s.y,s.z);snowCol.push(.75,.88,1);});
+const snowBuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,snowBuf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(snowPos),gl.DYNAMIC_DRAW);
+const snowColors=new Float32Array(snowCol);
+function perspective(fov,aspect,near,far){let f=1/Math.tan(fov/2),nf=1/(near-far);return [f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0];}
+function multiply(a,b){let o=new Array(16);for(let r=0;r<4;r++)for(let c=0;c<4;c++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o;}
+function view(angle){let c=Math.cos(angle),s=Math.sin(angle);return [c,0,-s,0, .0,1,0,0, s,0,c,0, 0,0,-4.4,1];}
+function resize(){let d=Math.min(devicePixelRatio||1,2),w=Math.floor(innerWidth*d),h=Math.floor(innerHeight*d);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}}
+let mouse=0,target=0;
+addEventListener('mousemove',e=>target=(e.clientX/innerWidth-.5)*.7);
+addEventListener('touchmove',e=>{if(e.touches[0])target=(e.touches[0].clientX/innerWidth-.5)*.7},{passive:true});
+function drawBuffer(data,colorData,mode,point=1,alpha=1){let b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);let cb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(colorData),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.color);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.uniform1f(loc.point,point);gl.uniform1f(loc.alpha,alpha);gl.drawArrays(mode,0,data.length/3);}
+const treeV=verts.slice(),treeC=cols.slice();
+let last=0;
+function frame(ms){resize();let t=ms/1000,dt=Math.min(.04,(ms-last)/1000||.016);last=ms;mouse+=(target-mouse)*.035;
+gl.clearColor(.018,.055,.12,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+let proj=perspective( Math.PI/3,canvas.width/canvas.height,.1,30),rot=view(mouse+Math.sin(t*.18)*.04),mvp=multiply(proj,rot);
+gl.useProgram(prog);gl.uniformMatrix4fv(loc.mvp,false,new Float32Array(mvp));
+drawBuffer(treeV,treeC,gl.TRIANGLES);
+gl.depthMask(false);
+let p=[];snow.forEach(s=>{s.y-=s.v*dt;if(s.y< -1.9){s.y=2.1;s.x=(rand()-.5)*5;}s.x+=Math.sin(t+s.z)*dt*.06;p.push(s.x,s.y,s.z);});
+gl.bindBuffer(gl.ARRAY_BUFFER,snowBuf);gl.bufferSubData(gl.ARRAY_BUFFER,0,new Float32Array(p));gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);
+let cb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cb);gl.bufferData(gl.ARRAY_BUFFER,snowColors,gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.color);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);
+gl.uniform1f(loc.point,3.2);gl.uniform1f(loc.alpha,.9);gl.drawArrays(gl.POINTS,0,snow.length);
+gl.depthMask(true);requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
